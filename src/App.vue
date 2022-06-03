@@ -6,3 +6,6 @@
   </div>
   <router-view></router-view>
 </template>
+<script setup>
+var a = 1
+</script>
