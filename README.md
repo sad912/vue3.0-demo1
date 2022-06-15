@@ -488,3 +488,271 @@ Vue 社区中其实已经有一个类似的工具集合，也就是 VueUse，它
 ```other
 npm install @vueuse/core
 ```
+# 08 | 组件化：如何像搭积木一样开发网页？
+
+开发一个简单的「评级分数」组件。
+
+```other
+touch src/components/Rate.vue
+```
+
+```other
+// src/components/Rate.vue
+
+<script setup>
+  import { computed, defineProps } from 'vue'
+  const props = defineProps({
+    value: Number,
+  })
+  let rate = computed(() => '★★★★★☆☆☆☆☆'.slice(5 - props.value, 10 - props.value))
+</script>
+
+<template>
+  {{ rate }}
+</template>
+```
+
+```other
+// src/pages/homePage.vue
+
+<script setup>
+  import { ref } from 'vue'
+  import Rate from '../components/Rate.vue'
+  const rate = ref(3)
+</script>
+
+<template>
+  <Rate :value="rate" />
+</template>
+```
+
+此时，评级分数组件可以通过 rate 值进行响应式变化，这里用到了组件传参的基本方式。
+
+我们继续为这个评级分数组件添加功能，例如，添加一个主题的功能，用于修改评级分数组件的样式。
+
+```other
+// src/components/Rate.vue
+
+<script setup>
+  import { computed, defineProps } from 'vue'
+  const props = defineProps({
+    value: Number,
+    theme: {
+      type: String,
+      default: 'orange',
+    },
+  })
+  let rate = computed(() => '★★★★★☆☆☆☆☆'.slice(5 - props.value, 10 - props.value))
+  let fontStyle = computed(() => `color:${props.theme};`)
+</script>
+
+<template>
+  <div :style="fontStyle">
+    {{ rate }}
+  </div>
+</template>
+```
+
+```other
+// src/pages/homePage.vue
+
+<script setup>
+  import { ref } from 'vue'
+  import Rate from '../components/Rate.vue'
+  const rateList = ref([
+    {
+      score: 1,
+    },
+    {
+      score: 3,
+      theme: 'red',
+    },
+    {
+      score: 5,
+      theme: 'blue',
+    },
+  ])
+</script>
+
+<template>
+  <Rate v-for="rate in rateList" :key="rate" :value="rate.score" :theme="rate.theme" />
+</template>
+```
+
+这还不够智能，我们换一种方式实现评级分数组件的主体，五个空心五角星和五个实心五角星通过绝对定位进行重叠，通过修改实心五角星的宽度实现评级分数的效果。
+
+同时，实现鼠标移入时修改实心五角星宽度实现hover评级效果，移出时恢复原先评级分数时的实心五角星宽度，点击时出发组件事件，修改副组件的评级分数值。
+
+代码如下：
+
+```other
+// src/components/Rate.vue
+
+<script setup>
+  import { computed, defineEmits, ref } from 'vue'
+  const props = defineProps({
+    score: Number,
+    theme: {
+      type: String,
+      default: 'orange',
+    },
+  })
+  let fontStyle = computed(() => `color:${props.theme};`)
+  let width = ref(props.score)
+  const mouseOver = (num) => {
+    width.value = num
+  }
+  const mouseOut = () => {
+    width.value = props.score
+  }
+  let fontWidth = computed(() => `width:${width.value}em;`)
+  const emits = defineEmits(['update:score'])
+  const updateScore = (num) => {
+    emits('update:score', num)
+  }
+</script>
+
+<template>
+  <div class="rate" :style="fontStyle" @mouseout="mouseOut">
+    <span v-for="num in 5" :key="num" @mouseover="mouseOver(num)">☆</span>
+    <span class="solid" :style="fontWidth">
+      <span v-for="num in 5" :key="num" @click="updateScore(num)" @mouseover="mouseOver(num)">★</span>
+    </span>
+  </div>
+</template>
+
+<style scoped>
+  .rate {
+    position: relative;
+  }
+  .rate > .solid {
+    position: absolute;
+    display: inline-block;
+    overflow: hidden;
+    left: 0;
+    top: 0;
+  }
+</style>
+```
+
+```other
+// src/pages/homePage.vue
+
+<script setup>
+  import { ref } from 'vue'
+  import Rate from '../components/Rate.vue'
+  const rateList = ref([
+    {
+      score: 1,
+    },
+    {
+      score: 3,
+      theme: 'red',
+    },
+    {
+      score: 4.5,
+      theme: 'blue',
+    },
+  ])
+</script>
+
+<template>
+  <h1>这是首页</h1>
+  <TodoList />
+  <Rate v-for="rate in rateList" :key="rate" v-model:score="rate.score" :theme="rate.theme" />
+</template>
+```
+
+这里用到了 v-model 配合事件的语法糖，具体可以查阅官方文档「事件-配合 v-model 使用」章节。
+
+接着，我们新增插槽功能，为评级分数组件添加可插入的名称。
+
+```other
+// src/components/Rate.vue
+
+<script setup>
+  import { computed, defineEmits, ref } from 'vue'
+  const props = defineProps({
+    score: Number,
+    theme: {
+      type: String,
+      default: 'orange',
+    },
+  })
+  let fontStyle = computed(() => `color:${props.theme};`)
+  let width = ref(props.score)
+  const mouseOver = (num) => {
+    width.value = num
+  }
+  const mouseOut = () => {
+    width.value = props.score
+  }
+  let fontWidth = computed(() => `width:${width.value}em;`)
+  const emits = defineEmits(['update:score'])
+  const updateScore = (num) => {
+    emits('update:score', num)
+  }
+</script>
+
+<template>
+  <div :style="fontStyle">
+    <slot />
+    <div class="rate" @mouseout="mouseOut">
+      <span v-for="num in 5" :key="num" @mouseover="mouseOver(num)">☆</span>
+      <span class="solid" :style="fontWidth">
+        <span v-for="num in 5" :key="num" @click="updateScore(num)" @mouseover="mouseOver(num)">★</span>
+      </span>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+  .rate {
+    position: relative;
+    display: inline-block;
+  }
+  .rate > .solid {
+    position: absolute;
+    display: inline-block;
+    overflow: hidden;
+    left: 0;
+    top: 0;
+  }
+</style>
+```
+
+```other
+// src/pages/homePage.vue
+
+<script setup>
+  import { ref } from 'vue'
+  import TodoList from '../components/TodoList.vue'
+  import Rate from '../components/Rate.vue'
+  const rateList = ref([
+    {
+      score: 1,
+      name: '课程评分',
+    },
+    {
+      score: 3,
+      theme: 'red',
+      name: '综合得分',
+    },
+    {
+      score: 4.5,
+      theme: 'blue',
+      name: '自我评价',
+    },
+  ])
+</script>
+
+<template>
+  <h1>这是首页</h1>
+  <TodoList />
+  <Rate v-for="rate in rateList" :key="rate" v-model:score="rate.score" :theme="rate.theme">
+    {{ rate.name }}
+  </Rate>
+</template>
+```
+
+至此，我们通过一个简单的评级组件的设计，对 Vue 3 的特性和功能有了进阶的认识。
