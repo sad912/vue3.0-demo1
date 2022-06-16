@@ -1,7 +1,10 @@
 <script setup>
   import { computed, ref } from 'vue'
   const props = defineProps({
-    score: Number,
+    score: {
+      type: Number,
+      default: 0,
+    },
     theme: {
       type: String,
       default: 'orange',
