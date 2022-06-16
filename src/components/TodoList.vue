@@ -1,6 +1,8 @@
 <script setup>
   import { computed, ref } from 'vue'
-
+  import { useToggle } from '@vueuse/core'
+  const showInfo = ref(false)
+  const toggleInfo = useToggle(showInfo)
   let title = ref('')
   let todoList = ref([
     {
@@ -9,11 +11,18 @@
     },
   ])
   function addTodo() {
-    todoList.value.push({
-      title: title.value,
-      done: false,
-    })
-    title.value = ''
+    if (!title.value) {
+      toggleInfo()
+      setTimeout(() => {
+        toggleInfo()
+      }, 1500)
+    } else {
+      todoList.value.push({
+        title: title.value,
+        done: false,
+      })
+      title.value = ''
+    }
   }
   function clear() {
     todoList.value = todoList.value.filter((todoItem) => !todoItem.done)
@@ -46,4 +55,30 @@
     <div>完成情况{{ all - undoneCount }} / {{ all }}</div>
   </template>
   <div v-else>暂无数据</div>
+  <Transition name="info">
+    <div v-if="showInfo" class="infoWrapper">
+      <div class="info">输入为空</div>
+    </div>
+  </Transition>
 </template>
+
+<style scoped>
+  .infoWrapper {
+    position: fixed;
+    top: 12px;
+    width: 100%;
+  }
+  .infoWrapper > .info {
+    color: red;
+    text-align: center;
+  }
+  .info-enter-from,
+  .info-leave-to {
+    opacity: 0;
+    transform: translateY(-60px);
+  }
+  .info-enter-active,
+  .info-leave-active {
+    transition: all 0.3s ease;
+  }
+</style>
