@@ -10,7 +10,7 @@
       done: false,
     },
   ])
-  function addTodo() {
+  const addTodo = () => {
     if (!title.value.trim()) {
       toggleInfo()
       setTimeout(() => {
@@ -24,7 +24,10 @@
       title.value = ''
     }
   }
-  function clear() {
+  const deleteTodo = (index) => {
+    todoList.value.splice(index, 1)
+  }
+  const clear = () => {
     todoList.value = todoList.value.filter((todoItem) => !todoItem.done)
   }
   let undoneCount = computed(() => {
@@ -46,9 +49,10 @@
   <button v-if="undoneCount < all" @click="clear">清空完成选项</button>
   <template v-if="todoList.length">
     <TransitionGroup name="list" tag="ul">
-      <li v-for="todoItem in todoList" :key="todoItem.title">
+      <li v-for="(todoItem, index) in todoList" :key="todoItem.title">
         <input v-model="todoItem.done" type="checkbox" />
         <span :class="{ done: todoList.done }">{{ todoItem.title }}</span>
+        <span @click="deleteTodo(index)"> ❌ </span>
       </li>
     </TransitionGroup>
     <div>全部完成<input v-model="allDone" type="checkbox" /></div>
@@ -82,7 +86,7 @@
     transition: all 0.3s ease;
   }
   .list-enter-from,
-  .lit-leave-to {
+  .list-leave-to {
     opacity: 0;
     transform: translateX(30px);
   }
