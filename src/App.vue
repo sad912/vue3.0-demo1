@@ -4,6 +4,21 @@
     |
     <router-link to="/about">关于</router-link>
   </div>
-  <router-view></router-view>
+  <router-view v-slot="{ Component, route }">
+    <transition name="route" mode="out-in">
+      <div :key="route.path">
+        <component :is="Component" />
+      </div>
+    </transition>
+  </router-view>
 </template>
-<script setup></script>
+<style scoped>
+  .route-enter-from,
+  .route-leave-to {
+    opacity: 0;
+  }
+  .route-enter-active,
+  .route-leave-active {
+    transition: opacity 0.5s linear;
+  }
+</style>

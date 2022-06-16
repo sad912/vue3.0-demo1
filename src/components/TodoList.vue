@@ -45,12 +45,12 @@
   <input v-model="title" type="text" @keydown.enter="addTodo" />
   <button v-if="undoneCount < all" @click="clear">清空完成选项</button>
   <template v-if="todoList.length">
-    <ul>
+    <TransitionGroup name="list" tag="ul">
       <li v-for="todoItem in todoList" :key="todoItem.title">
         <input v-model="todoItem.done" type="checkbox" />
         <span :class="{ done: todoList.done }">{{ todoItem.title }}</span>
       </li>
-    </ul>
+    </TransitionGroup>
     <div>全部完成<input v-model="allDone" type="checkbox" /></div>
     <div>完成情况{{ all - undoneCount }} / {{ all }}</div>
   </template>
@@ -80,5 +80,18 @@
   .info-enter-active,
   .info-leave-active {
     transition: all 0.3s ease;
+  }
+  .list-enter-from,
+  .lit-leave-to {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  .list-move,
+  .list-enter-active,
+  .list-leave-active {
+    transition: all ease 0.3s;
+  }
+  .list-leave-active {
+    position: absolute;
   }
 </style>
