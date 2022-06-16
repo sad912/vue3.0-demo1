@@ -23,7 +23,7 @@
   "plugins": [],
   "rules": {
     "vue/multi-word-component-names": ["error", {
-      "ignores": ["Rate"]
+      "ignores": ["Rate","Dustbin"]
     }]
   }
 }

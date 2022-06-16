@@ -1,6 +1,7 @@
 <script setup>
   import { computed, ref } from 'vue'
-  import { useToggle } from '@vueuse/core'
+  import { useToggle, usePointer } from '@vueuse/core'
+  import Dustbin from '@/components/Dustbin.vue'
   const showInfo = ref(false)
   const toggleInfo = useToggle(showInfo)
   let title = ref('')
@@ -26,9 +27,11 @@
   }
   const deleteTodo = (index) => {
     todoList.value.splice(index, 1)
+    dustbinShow.value = true
   }
   const clear = () => {
     todoList.value = todoList.value.filter((todoItem) => !todoItem.done)
+    dustbinShow.value = true
   }
   let undoneCount = computed(() => {
     return todoList.value.filter((todoItem) => !todoItem.done).length
@@ -42,6 +45,8 @@
       todoList.value.forEach((todoItem) => (todoItem.done = value))
     },
   })
+  const { x, y } = usePointer()
+  const dustbinShow = ref(false)
 </script>
 
 <template>
@@ -64,6 +69,7 @@
       <div class="info">输入为空</div>
     </div>
   </Transition>
+  <Dustbin v-model:state="dustbinShow" :x="x" :y="y"></Dustbin>
 </template>
 
 <style scoped>
