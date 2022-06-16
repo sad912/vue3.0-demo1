@@ -11,14 +11,14 @@
     },
   ])
   function addTodo() {
-    if (!title.value) {
+    if (!title.value.trim()) {
       toggleInfo()
       setTimeout(() => {
         toggleInfo()
       }, 1500)
     } else {
       todoList.value.push({
-        title: title.value,
+        title: title.value.trim(),
         done: false,
       })
       title.value = ''
