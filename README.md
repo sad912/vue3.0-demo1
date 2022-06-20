@@ -1025,3 +1025,353 @@ export const sadState = defineStore('SAD', {
 
 ### 发布订阅
 
+状态管理实例还提供了 `$subscribe()` 方法，可以用于监听状态的修改。
+
+```other
+store.$subscribe((mutation, state) => {
+  mutation.type // 'direct' | 'patch object' | 'patch function'
+  mutation.storeId // 'SAD'
+  // only available with mutation.type === 'patch object'
+  mutation.payload // patch object passed to store.$patch()
+  state.mode //'learning'
+})
+```
+
+当直接对状态进行修改时，`mutation.type` 为 `direct`。代码如下：
+
+```other
+// src/components/test.vue
+
+<script setup>
+  import { sadState } from '@/store/sad'
+  const store = sadState()
+  store.$subscribe((mutation, state) => {
+    console.log(mutation.type) // 'direct'
+    console.log(state.mode) // 'working'
+  })
+  store.mode = 'working'
+</script>
+<template></template>
+```
+
+```other
+// src/components/test.vue
+<script setup>
+  import { sadState } from '@/store/sad'
+  const store = sadState()
+  store.$subscribe((mutation, state) => {
+    console.log(mutation.type)  // 'direct'
+    console.log(state.modeList[0]) // 'sleeping'
+  })
+  store.modeList.push('sleeping')
+</script>
+<template></template>
+```
+
+当通过 `$patch()` 方法传递状态对象时，`mutation.type` 应为 `patch object`。测试代码如下：
+
+```other
+// src/components/test.vue
+
+<script setup>
+  import { sadState } from '@/store/sad'
+  const store = sadState()
+  store.$subscribe((mutation, state) => {
+    console.log(mutation.type)
+    console.log(state.mode)
+  })
+  store.$patch({
+    mode: 'sleeping',
+  })
+</script>
+<template></template>
+```
+
+我期望发布订阅的回调函数执行一次，但是浏览器控制台显示回调函数被执行了两次，一次修改类型为 `patch object`，一次为 `direct`。光看文档找不出其中缘由，看完文档再读源码吧。
+
+```other
+// console.log
+patch object
+sleeping
+direct
+sleeping
+```
+
+接着，尝试给 `$patch()` 方法传递函数，`mutation.type` 应为 `patch function`。测试代码如下：
+
+```other
+// src/components/test.vue
+
+<script setup>
+  import { sadState } from '@/store/sad'
+  const store = sadState()
+  store.$subscribe((mutation, state) => {
+    console.log(mutation.type)
+    console.log(state.mode)
+  })
+  store.$patch((state) => {
+    state.mode = 'reading'
+  })
+</script>
+<template></template>
+```
+
+同样的问题，控浏览器控制台显示发布订阅的回调函数被执行两次，日志如下：
+
+```other
+// console.log
+patch funtion
+reading
+direct
+reading
+```
+
+另外，当同时使用直接修改和 `$patch()` 方式修改的时候，也测试出了一些问题。测试代码如下：
+
+```other
+// src/components/test.vue
+
+<script setup>
+  import { sadState } from '@/store/sad'
+  const store = sadState()
+  store.$subscribe((mutation, state) => {
+    console.log(mutation.type)
+    console.log(state.mode)
+  })
+  store.modeList.push('sleeping')
+  store.$patch({
+    mode: 'sleeping',
+  })
+  store.mode = 'working'
+  store.$patch((state) => {
+    state.mode = 'reading'
+  })
+</script>
+<template></template>
+```
+
+我期望回调函数调用四次，但浏览器控制台显示前两次修改调用了一次，后两次修改调用了一次，还莫名其妙调用了一次且 `mutation.type` 为 `direct`。控制台日志如下：
+
+```other
+// console.log
+
+patch object
+sleeping
+patch function
+reading
+direct
+reading
+```
+
+另外，我继续分别测试了使用 `$reset()` 和`$state` 修改 state 的情况，两种情况和使用 `$patch()` 传递函数修改 state 时一样。
+
+面对测试的疑问，我开始尝试寻找答案，在官方 issues 中，有这么一个问题。
+
+[`$subscribe` miss mutations with type of `direct` immediately after`patch` mutations · Issue #992 · vuejs/pinia](https://github.com/vuejs/pinia/issues/992)
+
+我尝试在发布订阅函数的第二个选项对象参数中，加入 `flush: sync`。代码如下：
+
+```other
+// src/components/test.vue
+
+<script setup>
+  import { sadState } from '@/store/sad'
+  const store = sadState()
+  store.$subscribe(
+    (mutation, state) => {
+      console.log(mutation.type)
+      console.log(state.mode)
+    },
+    { flush: 'sync' }
+  )
+<template></template>
+```
+
+此时上述的期望打印都可以满足了。
+
+而至于为什么会这样。还需要深入研究。本文目的是入门 Pinia，记录看文档时学习和思考的过程，先不做深入研究。
+
+## Getters
+
+Getters 的定义和使用类似于计算属性。
+
+`getters` 作为 `defineStore()` 函数第二个参数的选项属性，用于声明 `Getters` ，值为带有 `state` 参数的函数。
+
+下面是一个简单的例子。
+
+```other
+// src/store/sad.js
+
+import { defineStore } from 'pinia'
+export const sadState = defineStore('SAD', {
+  state: () => {
+    return {
+      mode: 'learning',
+      modeList: [],
+    }
+  },
+  getters: {
+    myState: (state) => `I am ${state.mode}.`,
+  },
+})
+```
+
+```other
+// src/components/test.vue
+
+<script setup>
+  import { sadState } from '@/store/sad'
+  const store = sadState()
+</script>
+<template>{{ store.myState }}</template>
+```
+
+浏览器显示 `I am learning.`
+
+同时，可以使用 `this` 在一个 `getter` 里调用另一个 `getter`。
+
+```other
+// src/store/sad.js
+
+import { defineStore } from 'pinia'
+export const sadState = defineStore('SAD', {
+  state: () => {
+    return {
+      mode: 'learning',
+      modeList: [],
+    }
+  },
+  actions: {
+    setModeToWorking() {
+      this.mode = 'working'
+    },
+  },
+  getters: {
+    myState: (state) => `I am ${state.mode}.`,
+    noTime() {
+      return `I have no time because ${this.myState}`
+    },
+  },
+})
+```
+
+```other
+// src/components/test.vue
+
+<script setup>
+  import { sadState } from '@/store/sad'
+  const store = sadState()
+</script>
+<template>{{ store.noTime }}</template>
+```
+
+浏览器显示 `I have no time because I am learning.`
+
+由于 `getters` 默认传递参数 `state`，如果想为 `getters` 传递其他参数，可以选择给 `getters` 返回带参数的函数。下面是一个简单的例子：
+
+```other
+// src/store/sad.js
+
+import { defineStore } from 'pinia'
+export const sadState = defineStore('SAD', {
+  state: () => {
+    return {
+      mode: 'learning',
+      modeList: ['learning', 'working', 'sleeping', 'reading', 'writing'],
+    }
+  },
+  getters: {
+    getModeByIndex: (state) => {
+      return (index) => {
+        return state.modeList[index]
+      }
+    },
+  },
+})
+```
+
+```other
+// src/components/test.vue
+
+<script setup>
+  import { sadState } from '@/store/sad'
+  const store = sadState()
+</script>
+<template>modeList 的第一个 mode 值为：{{ store.getModeByIndex(0) }}</template>
+```
+
+此时浏览器显示 `modeList 的第一个 mode 值为：learning`。
+
+要注意，此时的 `getters` 是不被缓存的，但是你可以在 `getters` 内部缓存一些数据，用于返回函数中进行处理，来提高性能。
+
+另外，在 `getters` 中还可以使用其他 `store` 的 `getters`。例子如下：
+
+```other
+// src/store/test.js
+
+import { defineStore } from 'pinia'
+
+export const testState = defineStore('TEST', {
+  state: () => {
+    return {
+      test: '测试',
+    }
+  },
+  getters: {
+    valueOfTest(state) {
+      return state.test
+    },
+  },
+})
+```
+
+```other
+// src/store/sad.js
+
+import { defineStore } from 'pinia'
+import { testState } from '@/store/test.ts'
+export const sadState = defineStore('SAD', {
+  state: () => {
+    return {
+      mode: 'learning',
+    }
+  },
+  getters: {
+    contactStoreState(state) {
+      return state.mode + '|' + testState().valueOfTest
+    },
+  },
+})
+```
+
+```other
+// src/components/test.vue
+
+<script setup>
+  import { sadState } from '@/store/sad'
+  const store = sadState()
+</script>
+<template>{{ store.contactStoreState }}</template>
+```
+
+浏览器显示 `learning|测试`。
+
+## Actions
+
+`Actions` 相当于组件内的 `methods`。
+
+`actions` 作为 `defineStore()` 函数第二个参数的选项属性，用于声明 `Actions` ，值为用于逻辑操作的函数。
+
+通过 `this` 可以访问 `state` 和 `getters`。
+
+同时，可以在 `actions` 中使用异步操作。
+
+另外，还可以访问其他 `store` 中的 `actions`。
+
+由于 `actions` 和 `methods` 几乎一致，不再用代码展示。
+
+## Plugins
+
+Plugins 的功能，在之后进阶 Pinia 博客中再详细介绍。
+
+
