@@ -1,3 +1,5 @@
-<template>
-  <h1>这是关于页面</h1>
-</template>
+<script setup>
+  import { sadState } from '@/store/sad'
+  const store = sadState()
+</script>
+<template>{{ store.contactStoreState }}</template>
