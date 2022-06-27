@@ -1375,3 +1375,84 @@ export const sadState = defineStore('SAD', {
 Plugins 的功能，在之后进阶 Pinia 博客中再详细介绍。
 
 
+# 11 | 路由：新一代vue-router带来什么变化
+
+## 路由控制权的变化
+
+在前端还没有工程化、精细化的年代，路由是由后端控制的。用户访问路由地址后，通过服务器的路由系统来匹配对应的模版，然后加载模版对应的 JavaScript、CSS，然后再到用户端。页面跳转时，重复这个过程。
+
+在一定程度上，这种开发模式，前端部分是为后端进行服务的，前端工作是后端工作的子集。
+
+这种开发模式有其优劣性。它的开发速度会很快，但它开发出来的产品往往用户体验不是很好，页面跳转需要刷新整个页面，页面加载时间往往较长。
+
+而前端控制路由的时代，用户访问路由后，会直接访问项目的入口文件，然后在入口文件中加载 JavaScript、CSS 文件，再通过 JavaScript 获取路由来渲染对应的路由组件。页面跳转时仅仅重复
+
+「再通过 JavaScript 获取路由来渲染对应的路由组件」这个过程。
+
+这种模式，由于路由跳转不需要重新刷新页面，用户体验会好很多。
+
+同时，正是由于前端具有了控制路由的能力，才使得前后端可以完全分离，前后端不再有明确的依赖关系，而是相互配合。一定程度上，这促进了前端行业精细化的发展。
+
+## 前端控制路由的原理
+
+前面提到了，前端控制路由的一大优点就是：路由跳转不需要重新刷新页面。而路由变化往往又伴随浏览器地址 URL 的变化，那怎样才能在改变 URL 时，不会导致页面刷新呢？
+
+方式有二。一种是利用 `hashchange` 事件可以监听到 `window.location.hash` API 导致的 URL 变化，通常称为「hash 模式」；一种是利用 `popstate` 事件可以配合 `pushState` 和 `replaceState` API 进行监听页面会话的历史活动条目的改变，通常称为「history模式」。
+
+### hash 模式
+
+下面是一个简单的例子：
+
+访问 `http://sad912.com` ，在控制台键入以下代码
+
+```javascript
+function fn() {
+	console.log('路由改变，切换页面函数执行了')
+}
+window.addEventListener('hashchange', fn)
+window.location.hash = '/test'
+```
+
+此时，浏览器 URL 变为 `http://sad912.com/#/test`，控制台打印如下：
+
+```other
+'test/'
+路由改变，切换页面函数执行了
+```
+
+在上述例子中，我们可以通过 `fn` 函数，简单实现路由变化且触发切换页面的操作。
+
+### history 模式
+
+HTML 5 标准发布之后，提供了 `pushState` 和 `replaceState` API。利用这两个 API 可以实现不刷新页面修改 URL，同时可以配合 `popstate` 事件进行使用。
+
+下面是一个简单的例子：
+
+访问 `http://sad912.com` ，在控制台键入以下代码
+
+```javascript
+history.pushState({page: 1}, '', 'page1')
+```
+
+此时，浏览器 URL 变为 `http://sad912.com/page1`。
+
+接着，我尝试配合 `popstate` 事件进行使用。
+
+```javascript
+function fn(event) {
+  console.log(`state:${JSON.stringify(event.state)}`)
+}
+window.addEventListener('popstate', fn)
+history.pushState({page:2}, '', 'page2')
+history.replaceState({page:3}, '', 'page3')
+```
+
+此时，浏览器 URL 变为 `http://sad912.com/page3`。
+
+如果点击浏览器的返回按钮，或在控制台执行 `history.back()`，控制台会打印 `state:{“page“: 1}`；继续返回操作，控制台会打印 `state:null`；此时在控制台执行 `history.go(2)`，控制台会打印 `state:{”page“:3}`。
+
+在上述例子中，我们同样可以通过 `fn` 函数，简单实现路由变化时触发切换页面的操作。
+
+## 挖坑
+
+理解原理之后，挖个坑，未来实现一个简易版的 vue-router。
